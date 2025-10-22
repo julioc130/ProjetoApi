@@ -1,130 +1,86 @@
-from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
-
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
 from .models import User
 from .serializers import UserSerializer
 
-import json
-
-from . import funcoes as fn
-
-
-@api_view(['GET'])
+# LISTAR TODOS
+@api_view(["GET"])
 def get_users(request):
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == 'GET':
-
-        users = User.objects.all()                          #obter todos os objetos no banco de dados do usuario (retorna um conjunto de consultas)
-
-        serializer = UserSerializer(users, many=True)       #serializar os dados do objeto em json (Tem um parametro 'many' porque e um queryset)
-
-        return Response(serializer.data)                    #retornar os dados serializados
-    
-    return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-
-@api_view(['GET', 'PUT'])
+# BUSCAR / ATUALIZAR POR NICK
+@api_view(["GET", "PUT"])
 def get_by_nick(request, nick):
-
     try:
         user = User.objects.get(pk=nick)
-    except:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    except User.DoesNotExist:
+        return Response({"detail": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-
+    if request.method == "GET":
         serializer = UserSerializer(user)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == 'PUT':
+    # Se quiser exigir JWT, descomente a permissão acima e verifique request.user
+    serializer = UserSerializer(user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = UserSerializer(user, data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
-        return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-# CRUDZAO DA MASSA
-@api_view(['GET','POST','PUT','DELETE'])
+# CRUD "manager"
+@api_view(["GET", "POST", "PUT", "DELETE"])
 def user_manager(request):
-
-# ACESSOS
-
-    if request.method == 'GET':
-
+    # GET ?user=<nick>
+    if request.method == "GET":
+        nick = request.GET.get("user")
+        if not nick:
+            return Response({"detail": "Parâmetro 'user' é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            if request.GET['user']:                         #verifique se ha um parametro get chamado 'user' (/?user=xxxx&...)
-                user_nickname = request.GET['user']         #encontrar parâmetro get
-                try:
-                    user = User.objects.get(pk=user_nickname)   #obter o objeto no banco de dados
-                except:
-                    return Response(status=status.HTTP_404_NOT_FOUND)
+            user = User.objects.get(pk=nick)
+        except User.DoesNotExist:
+            return Response({"detail": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-                serializer = UserSerializer(user)           #rerializar os dados do objeto em json
-                return Response(serializer.data)            #retornar os dados serializados
-
-            else:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
-            
-        except:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-   
-
-# CRIANDO DADOS
-
-    if request.method == 'POST':
-
-        new_user = request.data
-        
-        serializer = UserSerializer(data=new_user)
-
+    # POST criar
+    if request.method == "POST":
+        serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-# EDITAR DADOS (PUT)
-
-    if request.method == 'PUT':
-
-        nickname = request.data['user_nickname']
-
+    # PUT atualizar
+    if request.method == "PUT":
+        nick = request.data.get("user_nickname")
+        if not nick:
+            return Response({"detail": "Campo 'user_nickname' é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            updated_user = User.objects.get(pk=nickname)
-        except:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            user = User.objects.get(pk=nick)
+        except User.DoesNotExist:
+            return Response({"detail": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
-        
-        print('Resultado final ', fn.soma(1,2))
-
-        serializer = UserSerializer(updated_user, data=request.data)
-
+        serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-        
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-# DELETAR DADOS (DELETE)
-
-    if request.method == 'DELETE':
-
+    # DELETE deletar
+    if request.method == "DELETE":
+        nick = request.data.get("user_nickname")
+        if not nick:
+            return Response({"detail": "Campo 'user_nickname' é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            user_to_delete = User.objects.get(pk=request.data['user_nickname'])
-            user_to_delete.delete()
-            return Response(status=status.HTTP_202_ACCEPTED)
-        except:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.get(pk=nick)
+        except User.DoesNotExist:
+            return Response({"detail": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-
+    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -1,5 +1,3 @@
 #testedaopcao
-def soma(a,b):
-    a = 1
-    b = 2
+def soma(a: int, b: int) -> int:
     return a + b

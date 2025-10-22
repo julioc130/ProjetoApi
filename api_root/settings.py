@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+
 from pathlib import Path
+from datetime import timedelta
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +43,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "api_rest",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -128,3 +132,21 @@ CORS_ALLOW_ORIGINS = [
     'http://localhost:8080',
 ]
 #lembre de colocar /api e /adim
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API Users",
+    "DESCRIPTION": "API com DTO, Mapper, Repository, JWT e Swagger",
+    "VERSION": "1.0.0",
+}
