@@ -1,3 +1,4 @@
+from typing import Optional
 from .models import Aluno, Curso, Matricula
 
 class AlunoRepository:
@@ -6,13 +7,23 @@ class AlunoRepository:
         return Aluno.objects.all()
 
     @staticmethod
-    def buscar_por_id(aluno_id: int):
+    def buscar_por_id(aluno_id: int) -> Optional[Aluno]:
         return Aluno.objects.filter(id=aluno_id).first()
 
     @staticmethod
-    def salvar(aluno: Aluno):
+    def criar(**dados):
+        return Aluno.objects.create(**dados)
+
+    @staticmethod
+    def atualizar(aluno: Aluno, **dados):
+        for campo, valor in dados.items():
+            setattr(aluno, campo, valor)
         aluno.save()
         return aluno
+
+    @staticmethod
+    def deletar(aluno: Aluno):
+        aluno.delete()
 
 
 class CursoRepository:
@@ -20,8 +31,16 @@ class CursoRepository:
     def listar():
         return Curso.objects.all()
 
+    @staticmethod
+    def criar(**dados):
+        return Curso.objects.create(**dados)
+
 
 class MatriculaRepository:
     @staticmethod
-    def criar(**kwargs):
-        return Matricula.objects.create(**kwargs)
+    def criar(aluno: Aluno, curso: Curso):
+        return Matricula.objects.create(aluno=aluno, curso=curso)
+
+    @staticmethod
+    def listar():
+        return Matricula.objects.select_related("aluno", "curso").all()
